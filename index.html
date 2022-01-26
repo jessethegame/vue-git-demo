@@ -6,40 +6,99 @@
 </head>
 <body>
   <div id="app">
-    <img src="https://vuejs.org/images/logo.png" alt="Vue logo">
-    <h1>{{ greeting }}</h1>
-    <ul>
-      <li>
-        To learn more about Vue, visit
-        <a :href="docsURL" target="_blank">
-          {{ humanizeURL(docsURL) }}
-        </a>
-      </li>
-      <li>
-        For live help with simple questions, check out
-        <a :href="discordURL" target="_blank">
-          the Discord chat
-        </a>
-      </li>
-      <li>
-        For more complex questions, post to
-        <a :href="forumURL" target="_blank">
-          the forum
-        </a>
-      </li>
-    </ul>
+
+    <!-- This form has inputs that map to the properties of the form JSON object-->
+    <form v-on:submit="submit()">
+      <p>Song title</p>
+      <input v-model="form.title">
+
+      <p>Date published</p>
+      <input v-model="form.datePublished" type="date">
+
+      <p>Are there any co-authors??</p>
+      <input v-model="form.hasCoAuthors" type="checkbox" id="checkbox">
+      <label for="checkbox">{{ form.hasCoAuthors ? "Yes" : "No" }}</label>
+
+      <!-- We render this block based on the value of hasCoAuthors -->
+      <div v-if="!form.hasCoAuthors">
+        <div v-for="(val, index) in form.coAuthors">
+          <input v-model="val.name" :key="index">
+          <!-- Removes on entry from the coAuthors array -->
+          <button v-on:click="removeCoAuthor(index)">X</button>
+        </div>
+        <!-- Adds a new entry into the coAuthors array -->
+        <button v-on:click="addCoAuthor()">+</button>
+      </div>
+
+      <input type="submit" value="Save" />
+    </form>
+
+    <button v-on:click="load()">Load from Drupal</button>
+    <button v-on:click="clear()">Clear from backend</button>
   </div>
 
   <script>
+
+    // This is a fake API, that uses local storage as a backend
+    // It stores and retrieves json blobs
+    const drupalApi = {
+      GET() {
+        const data = localStorage.getItem(key);
+        console.log("RECEIVING DATA FROM DRUPAL", data)
+        return JSON.parse(data);
+      },
+      POST(data) {
+        data = JSON.stringify(data);
+        console.log("SENDING DATA TO DRUPAL", data)
+        localStorage.setItem(key, data)
+      },
+      DELETE() {
+        console.log("DELETING DATA FROM DRUPAL", data)
+        localStorage.removeItem(key)
+      }
+    }
+
+    const key = "DATA";
     var app = new Vue({
       el: '#app',
       data: {
-        greeting: 'Welcome to your Vue.js app!',
-        docsURL: 'http://vuejs.org/guide/',
-        discordURL: 'https://chat.vuejs.org',
-        forumURL: 'http://forum.vuejs.org/'
+        // This is the form data object. It holds all the information that the user enters
+        // It also matches the JSON blob that is send and retrieved from drupal.
+        // We initialise the values here, because I'm not sure whether vue can do that for us,
+        // But it is also helpful to see the structure of our form data
+        form: {
+          "title": "",
+          "yearPublished": undefined,
+          "hasCoAuthors": false,
+          // We set up an initial value here which will show up in the form
+          // if hasCoAuthors is true. If we wanted to be very specific about
+          // this data, we could set up a listener on the hasCoAuthors checkbox
+          // and on change set up this array.
+          "coAuthors": [{name: ""}],
+        },
       },
       methods: {
+        removeCoAuthor(index) {
+          app.$data.form.coAuthors.splice(index, 1)
+        },
+        addCoAuthor() {
+          app.$data.form.coAuthors.push({name: ""})
+        },
+        // Called when the form is submitted
+        submit(e) {
+          console.log(arguments)
+          drupalApi.POST(app.$data.form)
+          e.preventDefault()
+        },
+        load() {
+          loadedData = drupalApi.GET()
+          if (loadedData) {
+            app.$data.form = loadedData
+          }
+        },
+        clear() {
+          drupalApi.DELETE()
+        },
         humanizeURL: function (url) {
           return url
             .replace(/^https?:\/\//, '')
@@ -48,5 +107,12 @@
       }
     })
   </script>
+
+  <style>
+    form {
+      padding: 20px;
+      border: solid 2px black;
+    }
+  </style>
 </body>
 </html>
